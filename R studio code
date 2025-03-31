@@ -1,0 +1,208 @@
+####Install and load packages####
+install.packages("pheatmap")
+
+library(pheatmap)
+library(tidyverse)
+
+####Alpha Diversity####
+NirK_alpha <- read.csv("SI_TS_NirK_alpha_diversiy.csv", stringsAsFactors = FALSE)
+
+View(NirK_alpha)
+
+colnames(NirK_alpha)
+
+NirK_alpha.pd <- NirK_alpha %>%
+  separate(placerun, into = c("sample", "depth", "gene", "extra"), sep = "_", remove = FALSE) %>%
+  select(-extra) %>%  # Remove the 'extra' column
+  mutate(depth = as.numeric(gsub("m", "", depth)))
+  
+# Display the first few rows of the dataset
+head(NirK_alpha.pd)
+
+# Select relevant columns
+NirK_alpha_data_wide <- NirK_alpha.pd %>%
+  select(depth, phylo_entropy, quadratic, unrooted_pd, rooted_pd, bwpd)
+
+
+# Pivot data to a longer format for faceting
+NirK_alpha_data_longer <- NirK_alpha_data_wide %>%
+  pivot_longer(cols = c("phylo_entropy", "quadratic", "unrooted_pd", "rooted_pd", "bwpd"),
+               names_to = "metric",
+               values_to = "value")
+
+# Define your desired order of metrics
+NirK_ordered <- c("unrooted_pd", "rooted_pd", "phylo_entropy", "quadratic", "bwpd")
+
+# Convert 'metric' column to a factor with specified levels
+NirK_alpha_data_longer$metric <- factor(NirK_alpha_data_longer$metric, levels = NirK_ordered)
+
+
+Alpha_NirK_ggplot <- ggplot(NirK_alpha_data_longer, aes(y = depth, x = value)) +
+  geom_point(aes(colour = metric, shape = metric), size = 4) +
+  scale_y_reverse() +
+  labs(title = "Alpha Diversity Metric against Depth",
+       x = "value") +
+  theme_minimal() +
+  facet_grid(. ~ metric, scales = "free_x")
+
+#Visualize plot
+Alpha_NirK_ggplot
+
+#Save plot
+ggsave(filename = "NirK_plot_alpha.png"
+       , Alpha_NirK_ggplot
+       , height=7, width=15)
+
+####Beta Diversity####
+
+# Load the data from the CSV file
+NirK_beta_data <- read_csv("SI_TS_NirK_beta_diversity.csv")  
+# Display the first few rows of the dataset
+head(NirK_beta_data)
+
+
+# Split 'sample_1' and 'sample_2' into their components (optional but useful for clarity)
+NirK_beta_data_split <- NirK_beta_data %>%
+  mutate(
+    sample_1 = gsub("_NirK_complete_profile", "", sample_1),
+    sample_2 = gsub("_NirK_complete_profile", "", sample_2)
+  ) %>%
+  mutate(
+    sample_1 = gsub("SI072_", "", sample_1),
+    sample_2 = gsub("SI072_", "", sample_2)
+  ) %>%
+  mutate(
+    sample_1 = as.numeric(gsub("m", "", sample_1)),
+    sample_2 = as.numeric(gsub("m", "", sample_2))
+  )
+
+# Generate a list of all unique samples from both columns
+all_samples_NirK <- sort(unique(c(NirK_beta_data_split$sample_1, NirK_beta_data_split$sample_2)))
+
+view(all_samples_NirK)
+# Create an empty matrix filled with NA
+NirK_beta_matrix_complete <- matrix(NA,
+                               nrow = length(all_samples_NirK),
+                               ncol = length(all_samples_NirK),
+                               dimnames = list(all_samples_NirK, all_samples_NirK))
+
+
+# Fill in the matrix symmetrically
+for (i in seq_len(nrow(NirK_beta_data_split))) {
+  row_name <- as.character(NirK_beta_data_split$sample_1[i])
+  col_name <- as.character(NirK_beta_data_split$sample_2[i])
+  value <- NirK_beta_data_split$Z_1[i]
+  
+  # Assign value symmetrically
+  NirK_beta_matrix_complete[row_name, col_name] <- value
+  NirK_beta_matrix_complete[col_name, row_name] <- value
+}
+
+#Troubleshooting
+print(row_name)
+print(col_name)
+print(rownames(NirK_beta_matrix_complete))
+print(colnames(NirK_beta_matrix_complete))
+
+# Replace NA with 0 if desired (or leave as NA for missing values)
+NirK_beta_matrix_complete[is.na(NirK_beta_matrix_complete)] <- 0
+
+# Convert to a data frame for compatibility with pheatmap
+NirK_beta_matrix_clean <- as.data.frame(NirK_beta_matrix_complete)
+
+# View the completed matrix
+print(NirK_beta_matrix_clean)
+
+###Plotting Beta Diversity###
+# Sort rows by their names or a specific column
+NirK_sorted_matrix <- NirK_beta_matrix_clean[order(rownames(NirK_beta_matrix_clean)), , drop = FALSE]
+
+# Cluster columns
+NirK_col_clust <- hclust(dist(t(NirK_sorted_matrix)))  # Create column dendrogram
+# Flip dendrogram branches if desired
+NirK_col_clust$order <- order(rownames(NirK_beta_matrix_clean))
+
+# Plot the heatmap
+Nirk_heatmap_beta <-pheatmap(as.matrix(NirK_sorted_matrix),
+         cluster_rows = FALSE,
+         cluster_cols = NirK_col_clust,
+         scale = "none",
+         color = colorRampPalette(c("black", "gray", "white"))(100),
+         border_color = NA,
+         main = "KR Distance Heatmap with Dendrogram")
+
+#Visualize plot
+Nirk_heatmap_beta
+
+#Save plot
+ggsave(filename = "NirK_plot_beta-heatmap.png"
+       , Nirk_heatmap_beta
+       , height=4, width=6)
+
+
+####Taxonomy analysis####
+# List of classification files
+file_list <- c("SI072_100m_classifications.tsv",
+               "SI072_120m_classifications.tsv",
+               "SI072_150m_classifications.tsv",
+               "SI072_200m_classifications.tsv",
+               "SI072_10m_classifications.tsv",
+               "SI072_135m_classifications.tsv",
+               "SI072_165m_classifications.tsv")
+
+# Merge all data frames by row names (assuming all files have a common columns)
+NirK_class_data <- file_list %>%
+  lapply(read_tsv, col_types = cols(.default = "c")) %>%
+  bind_rows()
+
+# Split the Sample column
+NirK_class_data <- NirK_class_data %>%
+  separate(Sample, into = c("Sample", "Depth", "extra"), sep = "_", remove = FALSE) %>%
+  select(-extra) %>%  # Remove the 'extra' column
+  mutate(Depth = as.numeric(gsub("m", "", Depth))) %>% # Remove 'm' and convert to numeric
+  separate(Taxonomy, into = c("Root", "Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"), sep = ";", fill = "right") %>%
+  select(-Root)  # Remove the 'Root' column
+NirK_sub_data <- NirK_class_data %>%
+  filter(Marker == "NirK")
+NirK_sub_data %>% filter(is.na(as.numeric(Abundance)))
+
+view(NirK_sub_data)
+# Display the first few rows of the dataset
+head(NirK_sub_data)
+
+####Bubbleplot for NirK####
+# Sum Abundance by Sample, Phylum, and Depth
+NirK_data_taxa <- NirK_sub_data %>%
+  mutate(Abundance = as.numeric(Abundance)) %>%  
+  group_by(Sample, Class, Depth) %>%
+  summarise(Abundance = sum(Abundance, na.rm = TRUE), .groups = "drop") %>%
+  mutate(Class = gsub("c__", "", Class))
+
+NirK_bubbleplot_taxonomy <-ggplot(NirK_data_taxa, aes(x = Class, y = Depth)) +
+  geom_point(aes(size = Abundance), color = "black", alpha = 0.7) +  # Fixed black color
+  scale_y_reverse(limits = c(210, 0)) +  # Shallow at top, deep at bottom
+  scale_size(range = c(1, 10)) +
+  theme_minimal() +
+  labs(title = "Bubble Plot of Class Abundance by Depth for NirK",
+       x = "Class",
+       y = "Depth",
+       size = "Abundance") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#Visualize plot
+NirK_bubbleplot_taxonomy
+
+#Save plot
+ggsave(filename = "NirK_bubbleplot_taxonomy.png"
+       , NirK_bubbleplot_taxonomy
+       , height=4, width=6)
+
+
+####Saanich data####
+Saanich <- read.csv("Saanich_Data.csv")
+
+
+
+
+
+
