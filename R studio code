@@ -2,7 +2,7 @@
 
 library(tidyverse)
 library(viridis)
-library(knitr)
+
 ####Alpha Diversity for DNA####
 NirK_alpha <- read.csv("SI_TS_NirK_alpha_diversiy.csv", stringsAsFactors = FALSE)
 
@@ -300,12 +300,6 @@ top10_table_dna <- NirK_metagenome_taxa %>%
   ) %>%
   arrange(desc(Mean_Abundance))
 
-# Display as a nice table
-kable(top10_table_dna, digits = 2, caption = "Top 10 Genera in Metagenome (NirK) and Their Abundance")
-
-write.csv(top10_table_dna, "top10_table_dna.csv", row.names = TRUE)
-
-
 #generate plot
 top10taxa_dna <- ggplot(metaDNA_top10, aes(x = Genus, y = Depth, size = Abundance)) +
   geom_point(shape = 21, fill = viridis(10, option = "viridis")[8], color = "black", alpha = 0.7) +
@@ -337,19 +331,6 @@ metaRNA_top10 <- NirK_taxa_metatranscriptome %>%
   filter(Genus %in% top10_genera_rna)
 
 top10_genera_rna
-# Generate table of mean and SD of abundance for the top 10 RNA genera
-top10_table_rna <- metaRNA_top10 %>%
-  group_by(Genus) %>%
-  summarise(
-    Mean_Abundance = mean(Abundance, na.rm = TRUE),
-    SD_Abundance = sd(Abundance, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  arrange(desc(Mean_Abundance))
-
-# Display nicely
-kable(top10_table_rna, digits = 2, caption = "Top 10 Genera in Metatranscriptome (NirK) and Their Abundance")
-write.csv(top10_table_rna, "top10_table_rna.csv", row.names = TRUE)
 
 
 #generate plot
