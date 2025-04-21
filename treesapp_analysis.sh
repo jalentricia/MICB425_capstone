@@ -3,6 +3,8 @@
 # activate tree_sapp 
 mamba activate treesapp_cenv
 
+### Metagenomic Analysis ###
+
 # loop command to classify nirK for each depth and calculate abundance for metagenomic data
 for depth in 10m 100m 120m 135m 150m 165m 200m; do treesapp assign -i ~/MICB425/assemblies/SI072_${depth}_contig.fa -r ~/MICB425/metagenomes/SI072_${depth}_pe.1.fq.gz -2 ~/MICB425/metagenomes/SI072_${depth}_pe.2.fq.gz -o ~/Group2_capstone_output_folder/NirK_${depth}_output_group2_AN/ -t NirK -n 2 --rel_abund; done
 
