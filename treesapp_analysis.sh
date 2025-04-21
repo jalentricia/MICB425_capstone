@@ -1,3 +1,4 @@
+#!/bin/bash
 
 # activate tree_sapp 
 mamba activate treesapp_cenv
