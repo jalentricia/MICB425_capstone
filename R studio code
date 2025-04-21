@@ -1,9 +1,8 @@
-####Install and load packages####
-install.packages("pheatmap")
+####Load packages####
 
-library(pheatmap)
 library(tidyverse)
 library(viridis)
+library(knitr)
 ####Alpha Diversity for DNA####
 NirK_alpha <- read.csv("SI_TS_NirK_alpha_diversiy.csv", stringsAsFactors = FALSE)
 
@@ -36,7 +35,7 @@ NirK_ordered <- c("unrooted_pd", "rooted_pd", "phylo_entropy", "quadratic", "bwp
 # Convert 'metric' column to a factor with specified levels
 NirK_alpha_data_longer$metric <- factor(NirK_alpha_data_longer$metric, levels = NirK_ordered)
 
-
+#generate plot
 Alpha_NirK_ggplot <- ggplot(NirK_alpha_data_longer, aes(y = depth, x = value)) +
   geom_point(aes(colour = metric, shape = metric), size = 4) +
   scale_y_reverse() +
@@ -55,6 +54,7 @@ Alpha_NirK_ggplot
 ggsave(filename = "NirK_plot_alpha.png"
        , Alpha_NirK_ggplot
        , height=7, width=15)
+
 
 ####Beta Diversity for DNA####
 
@@ -120,86 +120,11 @@ print(NirK_beta_matrix_clean)
 # Sort rows by their names or a specific column
 NirK_sorted_matrix <- NirK_beta_matrix_clean[order(rownames(NirK_beta_matrix_clean)), , drop = FALSE]
 
-# Cluster columns
-NirK_col_clust <- hclust(dist(t(NirK_sorted_matrix)))  # Create column dendrogram
-# Flip dendrogram branches if desired
-NirK_col_clust$order <- order(rownames(NirK_beta_matrix_clean))
+# View the completed matrix
+print(NirK_sorted_matrix)
 
-# Plot the heatmap
-Nirk_heatmap_beta <-pheatmap(as.matrix(NirK_sorted_matrix),
-         cluster_rows = FALSE,
-         cluster_cols = NirK_col_clust,
-         scale = "none",
-         color = colorRampPalette(c("black", "gray", "white"))(100),
-         border_color = NA,
-         main = "KR Distance Heatmap with Dendrogram")
-
-#Visualize plot
-Nirk_heatmap_beta
-
-#Save plot
-ggsave(filename = "NirK_plot_beta-heatmap.png"
-       , Nirk_heatmap_beta
-       , height=4, width=6)
-
-####Ordination plot for DNA####
-
-# Convert the matrix to a distance object
-NirK_beta_dist <- as.dist(NirK_beta_matrix_complete)
-
-# Run PCoA
-NirK_pcoa <- cmdscale(NirK_beta_dist, eig = TRUE, k = 2)  # k = 2 for 2D plotting
-
-# Extract PCoA coordinates
-NirK_pcoa_df <- as_tibble(NirK_pcoa$points) %>%
-  mutate(Sample = rownames(NirK_beta_matrix_complete))
-
-# Rename columns for clarity
-colnames(NirK_pcoa_df) <- c("PCoA1", "PCoA2", "Sample")
-
-
-ggplot(NirK_pcoa_df, aes(x = PCoA1, y = PCoA2, label = Sample)) +
-  geom_point(size = 4, alpha = 0.7, color = "blue") +
-  geom_text(vjust = -0.5, size = 3) +
-  theme_minimal() +
-  labs(title = "PCoA Ordination of Beta Diversity",
-       x = paste("PCoA1 (", round(NirK_pcoa$eig[1] / sum(NirK_pcoa$eig) * 100, 2), "%)", sep = ""),
-       y = paste("PCoA2 (", round(NirK_pcoa$eig[2] / sum(NirK_pcoa$eig) * 100, 2), "%)", sep = "")) +
-  theme(plot.title = element_text(hjust = 0.5))
-
-
-# Convert the beta diversity matrix into a distance object
-NirK_beta_dist <- as.dist(NirK_beta_matrix_complete)
-
-# Perform PCoA
-NirK_pcoa <- cmdscale(NirK_beta_dist, eig = TRUE, k = 2)  # k = 2 for 2D ordination
-
-# Extract coordinates and convert to a tibble
-NirK_pcoa_df <- as_tibble(NirK_pcoa$points) %>%
-  mutate(Sample = rownames(NirK_beta_matrix_complete))
-
-# Rename columns for clarity
-colnames(NirK_pcoa_df) <- c("PCoA1", "PCoA2", "Sample")
-
-# Convert Sample to numeric (depth in meters)
-NirK_pcoa_df$Depth <- as.numeric(NirK_pcoa_df$Sample)
-
-NirK_ordination_plot <-ggplot(NirK_pcoa_df, aes(x = PCoA1, y = PCoA2, color = Depth)) +
-  geom_point(size = 4, alpha = 0.8) +
-  scale_color_viridis(option = "D", direction = -1) +  # "D" is default; direction=-1 makes deep red
-  theme_minimal() +
-  labs(title = "PCoA Ordination of NirK Beta Diversity",
-       x = paste("PCoA1 (", round(NirK_pcoa$eig[1] / sum(NirK_pcoa$eig) * 100, 2), "%)", sep = ""),
-       y = paste("PCoA2 (", round(NirK_pcoa$eig[2] / sum(NirK_pcoa$eig) * 100, 2), "%)", sep = ""),
-       color = "Depth (m)") +
-  theme(plot.title = element_text(hjust = 0.5))
-
-NirK_ordination_plot 
-
-ggsave(filename = "NirK_ordination_plot .png"
-       , NirK_ordination_plot 
-       , height=4, width=6)
-
+#export matrix for downstream analysis as .csv file
+write.csv(NirK_sorted_matrix, "NirK_KR_distance_matrix.csv", row.names = TRUE)
 
 
 
@@ -218,6 +143,7 @@ NirK_class_data <- file_list %>%
   lapply(read_tsv, col_types = cols(.default = "c")) %>%
   bind_rows()
 
+
 # Split the Sample column
 NirK_class_data <- NirK_class_data %>%
   separate(Sample, into = c("Sample", "Depth", "extra"), sep = "_", remove = FALSE) %>%
@@ -233,6 +159,8 @@ view(NirK_sub_data)
 # Display the first few rows of the dataset
 head(NirK_sub_data)
 
+summary(NirK_sub_data) 
+
 ####Bubbleplot for NirK for DNA####
 # Sum Abundance by Sample, Phylum, and Depth
 NirK_data_taxa <- NirK_sub_data %>%
@@ -241,19 +169,19 @@ NirK_data_taxa <- NirK_sub_data %>%
   summarise(Abundance = sum(Abundance, na.rm = TRUE), .groups = "drop") %>%
   mutate(Class = gsub("c__", "", Class))
 
+head(NirK_data_taxa)
 
-NirK_bubbleplot_taxonomy <- ggplot(NirK_data_taxa, aes(x = Class, y = Depth)) +
-  geom_point(aes(size = Abundance, color = as.factor(Depth)), alpha = 0.7) +  # Assign color to Depth
-  scale_y_reverse(limits = c(210, 0)) +  # Shallow at top, deep at bottom
-  scale_size(range = c(1, 10)) +  
-  scale_color_viridis_d(option = "viridis") +  # Colorblind-friendly and perceptually uniform
-  theme_minimal() +  
-  labs(title = "Bubble Plot of Class Abundance by Depth for NirK",
+#plot
+NirK_bubbleplot_taxonomy <- ggplot(NirK_data_taxa, aes(x = Class, y = Depth, size = Abundance)) +
+  geom_point(shape = 21, fill = viridis(10, option = "viridis")[8], color = "black", alpha = 0.7) +
+  scale_y_reverse(limits = c(210, 0)) +
+  scale_size(range = c(1, 10)) +
+  theme_minimal() +
+  labs(title = "Metagenome",
        x = "Class",
-       y = "Depth",
-       size = "Abundance",
-       color = "Depth") +  # Label for legend
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+       y = "Depth (m)",
+       size = "Abundance") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 #Visualize plot
 NirK_bubbleplot_taxonomy
@@ -261,8 +189,6 @@ NirK_bubbleplot_taxonomy
 #Save plot
 ggsave(filename = "NirK_bubbleplot_taxonomy.png"
        , NirK_bubbleplot_taxonomy)
-
-
 
 
 
@@ -297,6 +223,9 @@ view(NirK_sub_data_metatranscriptome)
 # Display the first few rows of the dataset
 head(NirK_sub_data_metatranscriptome)
 
+write.csv(NirK_sub_data_metatranscriptome, "NirK_sub_data_metatranscriptome.csv", row.names = TRUE)
+
+
 ####Bubbleplot for NirK for metatranscriptome####
 # Sum Abundance by Sample, Phylum, and Depth
 NirK_data_taxa_metatranscriptome <- NirK_sub_data_metatranscriptome %>%
@@ -305,20 +234,20 @@ NirK_data_taxa_metatranscriptome <- NirK_sub_data_metatranscriptome %>%
   summarise(Abundance = sum(Abundance, na.rm = TRUE), .groups = "drop") %>%
   mutate(Class = gsub("c__", "", Class))
 
+write.csv(NirK_data_taxa_metatranscriptome, "NirK_data_taxa_metatranscriptome.csv", row.names = TRUE)
 
-NirK_bubbleplot_taxonomy_metatranscriptome <- ggplot(NirK_data_taxa_metatranscriptome, aes(x = Class, y = Depth)) +
-  geom_point(aes(size = Abundance, color = as.factor(Depth)), alpha = 0.7) +  # Assign color to Depth
-  scale_y_reverse(limits = c(210, 0)) +  # Shallow at top, deep at bottom
-  scale_size(range = c(1, 10)) +  
-  scale_color_viridis_d(option = "viridis") +  # Colorblind-friendly and perceptually uniform
-  theme_minimal() +  
-  labs(title = "Bubble Plot of Class Abundance by Depth for NirK",
+
+#generate plot
+NirK_bubbleplot_taxonomy_metatranscriptome <- ggplot(NirK_data_taxa_metatranscriptome, aes(x = Class, y = Depth, size = Abundance)) +
+  geom_point(shape = 21, fill = viridis(1, option = "viridis"), color = "black", alpha = 0.7) +
+  scale_y_reverse(limits = c(210, 0)) +
+  scale_size(range = c(1, 10)) +
+  theme_minimal() +
+  labs(title = "Metatranscriptome",
        x = "Class",
-       y = "Depth",
-       size = "Abundance",
-       color = "Depth") +  # Label for legend
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
-
+       y = "Depth (m)",
+       size = "Abundance") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 
 #Visualize plot
@@ -338,96 +267,118 @@ combined_plot <- NirK_bubbleplot_taxonomy + NirK_bubbleplot_taxonomy_metatranscr
 
 print(combined_plot)
 
-# Optional: Save to file
+# Save plot
 ggsave("NirK_metagenome_vs_metatranscriptome_bubbleplot.png", combined_plot, width = 16, height = 8, dpi = 300)
 
 
+####Top 10 genera in metagenome####
+NirK_metagenome_taxa <- NirK_sub_data %>%
+  mutate(Abundance = as.numeric(Abundance)) %>%
+  group_by(Sample, Genus, Depth) %>%
+  summarise(Abundance = sum(Abundance, na.rm = TRUE), .groups = "drop")
 
-####Saanich data####
-Saanich <- read.csv("Saanich_Data.csv")
+#get top 10 genera
+top10_genera_dna <- NirK_metagenome_taxa %>%
+  group_by(Genus) %>%
+  summarise(mean_abundance = mean(Abundance, na.rm = TRUE)) %>%
+  arrange(desc(mean_abundance)) %>%
+  slice_head(n = 10) %>%
+  pull(Genus)
 
-colnames(Saanich)
+view(top10_genera_dna)
 
-####Denitrification####
-###Vertical plot for concentration
-# Select relevant columns
-saanich_data_wide <- Saanich %>%
-  select(Cruise, Date, Depth, WS_NO3)
+metaDNA_top10 <- NirK_metagenome_taxa %>%
+  filter(Genus %in% top10_genera_dna)
+#table
+top10_table_dna <- NirK_metagenome_taxa %>%
+  filter(Genus %in% top10_genera_dna) %>%
+  group_by(Genus) %>%
+  summarise(
+    Mean_Abundance = mean(Abundance, na.rm = TRUE),
+    SD_Abundance = sd(Abundance, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(Mean_Abundance))
 
-# Pivot data to a longer format for faceting
-saanich_data_longer <- saanich_data_wide %>%
-  pivot_longer(cols = starts_with("WS_"),
-               names_to = "Chemical",
-               values_to = "Concentration_uM")%>%
-  mutate(Depth = Depth * 1000)  # Multiply depths by 1000
+# Display as a nice table
+kable(top10_table_dna, digits = 2, caption = "Top 10 Genera in Metagenome (NirK) and Their Abundance")
 
-Saanich_nitrate_concentration <-ggplot(saanich_data_longer, aes(y = Depth, x = Concentration_uM)) +
-  geom_point(aes(colour = Chemical, shape = Chemical)) +
-  scale_y_reverse() +
-  labs(title = "Nitrate Concentration Against Depth",
-       x = "Concentration (uM)") +
+write.csv(top10_table_dna, "top10_table_dna.csv", row.names = TRUE)
+
+
+#generate plot
+top10taxa_dna <- ggplot(metaDNA_top10, aes(x = Genus, y = Depth, size = Abundance)) +
+  geom_point(shape = 21, fill = viridis(10, option = "viridis")[8], color = "black", alpha = 0.7) +
+  scale_size(range = c(1, 10)) +
+  scale_y_reverse(limits = c(210, 0)) +
+  labs(  y = "Depth (m)",
+       x = "Genus",
+       size = "Abundance") +
   theme_minimal() +
-  scale_color_viridis_d(option = "viridis") +  # Colorblind-friendly and perceptually uniform
-  facet_grid(. ~ Chemical, scales = "free_x")
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+top10taxa_dna
+
+####Top 10 genera in metatranscriptome####
+
+NirK_taxa_metatranscriptome <- NirK_sub_data_metatranscriptome %>%
+  mutate(Abundance = as.numeric(Abundance)) %>%
+  group_by(Sample, Genus, Depth) %>%
+  summarise(Abundance = sum(Abundance, na.rm = TRUE), .groups = "drop")
+
+top10_genera_rna <- NirK_taxa_metatranscriptome %>%
+  group_by(Genus) %>%
+  summarise(mean_abundance = mean(Abundance, na.rm = TRUE)) %>%
+  arrange(desc(mean_abundance)) %>%
+  slice_head(n = 10) %>%
+  pull(Genus)
+
+metaRNA_top10 <- NirK_taxa_metatranscriptome %>%
+  filter(Genus %in% top10_genera_rna)
+
+top10_genera_rna
+# Generate table of mean and SD of abundance for the top 10 RNA genera
+top10_table_rna <- metaRNA_top10 %>%
+  group_by(Genus) %>%
+  summarise(
+    Mean_Abundance = mean(Abundance, na.rm = TRUE),
+    SD_Abundance = sd(Abundance, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(Mean_Abundance))
+
+# Display nicely
+kable(top10_table_rna, digits = 2, caption = "Top 10 Genera in Metatranscriptome (NirK) and Their Abundance")
+write.csv(top10_table_rna, "top10_table_rna.csv", row.names = TRUE)
 
 
-#Visualize plot
-Saanich_nitrate_concentration
-
-#Save plot
-ggsave(filename = "Saanich_nitrate_concentration.png"
-       , Saanich_nitrate_concentration)
-
-
-###Vertical plot for average
-# Select relevant columns
-saanich_data_wide_mean <- Saanich %>%
-  select(Cruise, Date, Depth, Mean_N2, Mean_N2O, Mean_NH4, Mean_NO2)
-
-
-# Convert data from wide to long format
-saanich_data_longer_mean <- saanich_data_wide_mean %>%
-  pivot_longer(cols = starts_with("Mean_"),
-               names_to = "Chemical",
-               values_to = "Mean") %>%
-  mutate(Depth = Depth * 1000)  # Multiply depths by 1000
-
-Saanich_nitrogensubstrates_mean <-ggplot(saanich_data_longer_mean, aes(y = Depth, x = Mean)) +
-  geom_point(aes(colour = Chemical, shape = Chemical)) +
-  scale_y_reverse() +
-  labs(title = "Denitrification Substrates Concentrations Against Depth",
-       x = "Mean") +
+#generate plot
+top10taxa_rna <- ggplot(metaRNA_top10, aes(x = Genus, y = Depth, size = Abundance)) +
+  geom_point(shape = 21, fill = viridis(1, option = "viridis"), color = "black", alpha = 0.7) +
+  scale_size(range = c(1, 10)) +
+  scale_y_reverse(limits = c(210, 0)) +
+  labs( y = "Depth (m)",
+       x = "Genus",
+       size = "Abundance") +
   theme_minimal() +
-  scale_color_viridis_d(option = "viridis") +  # Colorblind-friendly and perceptually uniform
-  facet_grid(. ~ Chemical, scales = "free_x") +
-  theme(panel.spacing = unit(2, "cm"))
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+top10taxa_rna
 
+#combine genera plots
+combined_plot_genera <-  top10taxa_dna + top10taxa_rna +
+  plot_layout(ncol = 2, guides = "collect") & theme(legend.position = "right")
 
-#Visualize plot
-Saanich_nitrogensubstrates_mean
+print(combined_plot_genera)
 
-#Save plot
-ggsave(filename = "Saanich_nitrogensubstrates_mean.png"
-       , Saanich_nitrogensubstrates_mean)
+# Save to plot
+ggsave("NirK_metagenome_vs_metatranscriptome_bubbleplot_genera.png", combined_plot_genera, width = 16, height = 8, dpi = 300)
 
+# Combine the 4 plots into a 2x2 panel
+combined_plot_4 <- (NirK_bubbleplot_taxonomy | NirK_bubbleplot_taxonomy_metatranscriptome) /
+  (top10taxa_dna | top10taxa_rna) +
+  plot_layout(heights = c(1, 1.3)) 
 
+# Display the plot
+combined_plot_4
 
-
-###Scatterplot
-O2vsNO3 <- ggplot(Saanich, aes(x = WS_O2, y = WS_NO3, color = Depth)) +  
-  geom_point(size = 3, alpha = 0.8) +  # Improve visibility  
-  labs(title = "Oxygen vs Nitrate Concentrations by Depth",  
-       x = "O2 (µM)",  
-       y = "NO3 (µM)",  
-       color = "Depth (m)") +  
-  scale_color_viridis_c(option = "viridis", direction = -1) +  # Colorblind-friendly palette  
-  theme_minimal()
-
-#Visualize plot
-O2vsNO3
-
-#Save plot
-ggsave(filename = "O2vsNO3_scatterplot.png"
-       , O2vsNO3)
-
-
+ggsave("NirK_combined_plot_4.png", combined_plot_4, width = 14, height = 10, dpi = 300)
