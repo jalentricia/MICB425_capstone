@@ -1,5 +1,5 @@
 
-# activate tree_sapp
+# activate tree_sapp 
 mamba activate treesapp_cenv
 
 # loop command to classify nirK for each depth and calculate abundance for metagenomic data
