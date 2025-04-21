@@ -1,1 +1,39 @@
 
+# activate tree_sapp
+mamba activate treesapp_cenv
+
+# loop command to classify nirK for each depth and calculate abundance for metagenomic data
+for depth in 10m 100m 120m 135m 150m 165m 200m; do treesapp assign -i ~/MICB425/assemblies/SI072_${depth}_contig.fa -r ~/MICB425/metagenomes/SI072_${depth}_pe.1.fq.gz -2 ~/MICB425/metagenomes/SI072_${depth}_pe.2.fq.gz -o ~/Group2_capstone_output_folder/NirK_${depth}_output_group2_AN/ -t NirK -n 2 --rel_abund; done
+
+## Alpha diversity for metagenomic data ##
+
+# 10m
+guppy fpd -o NirK_10m_output_group2_AN/iTOL_output/NirK/alpha_diversity.cs
+v --csv NirK_10m_output_group2_AN/iTOL_output/NirK/NirK_complete_profile.jplace
+
+# 100m
+guppy fpd -o NirK_100m_output_group2_AN/iTOL_output/NirK/alpha_diversity.cs
+v --csv NirK_100m_output_group2_AN/iTOL_output/NirK/NirK_complete_profile.jplace
+
+# 120m
+guppy fpd -o NirK_120m_output_group2_AN/iTOL_output/NirK/alpha_diversity.cs
+v --csv NirK_120m_output_group2_AN/iTOL_output/NirK/NirK_complete_profile.jplace
+
+# 135m
+guppy fpd -o NirK_135m_output_group2_AN/iTOL_output/NirK/alpha_diversity.cs
+v --csv NirK_135m_output_group2_AN/iTOL_output/NirK/NirK_complete_profile.jplace
+
+# 150m
+guppy fpd -o NirK_150m_output_group2_AN/iTOL_output/NirK/alpha_diversity.cs
+v --csv NirK_150m_output_group2_AN/iTOL_output/NirK/NirK_complete_profile.jplace
+
+# 165m
+guppy fpd -o NirK_165m_output_group2_AN/iTOL_output/NirK/alpha_diversity.cs
+v --csv NirK_165m_output_group2_AN/iTOL_output/NirK/NirK_complete_profile.jplace
+
+# 200m
+guppy fpd -o NirK_200m_output_group2_AN/iTOL_output/NirK/alpha_diversity.cs
+v --csv NirK_200m_output_group2_AN/iTOL_output/NirK/NirK_complete_profile.jplace
+
+
+
